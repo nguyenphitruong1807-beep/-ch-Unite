@@ -1,0 +1,460 @@
+```html
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Giải Mã Ô Chữ: THẤU HIỂU - Dành cho Sale BĐS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');
+        
+        :root {
+            --cell-size: clamp(1.8rem, 8vw, 3rem);
+            --primary-bg: #f8fafc;
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: var(--primary-bg);
+            touch-action: manipulation;
+        }
+
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 40;
+        }
+
+        .grid-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 0.5rem;
+            display: flex;
+            justify-content: center;
+        }
+
+        #grid-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0 0.5rem;
+        }
+
+        .row-container {
+            display: flex;
+            gap: 0.15rem;
+            margin-bottom: 0.25rem;
+            padding: 0.25rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            width: fit-content;
+        }
+
+        .row-container:active, .row-container.active-row {
+            background-color: #fef3c7;
+            outline: 2px dashed #f59e0b;
+        }
+
+        .grid-cell {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(0.9rem, 4vw, 1.5rem);
+            font-weight: 700;
+            border: 1px solid #1e293b;
+            background-color: white;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+            box-shadow: 1px 1px 0px #1e293b;
+            position: relative;
+        }
+
+        .grid-cell.hidden-cell {
+            visibility: hidden;
+            border: none;
+            box-shadow: none;
+        }
+
+        .grid-cell.key-col {
+            background-color: #dbeafe;
+            border-color: #1d4ed8;
+            color: #1e3a8a;
+        }
+
+        .grid-cell.revealed {
+            background-color: #ffffff;
+            animation: flipIn 0.5s ease-out forwards;
+        }
+
+        .grid-cell.key-col.revealed {
+            background-color: #bfdbfe;
+        }
+
+        .victory-mode .grid-cell.key-col.revealed {
+            background-color: #fbbf24;
+            color: #78350f;
+            border-color: #b45309;
+            animation: pulseGold 1.5s infinite;
+        }
+
+        .cell-number {
+            position: absolute;
+            font-size: 0.5rem;
+            font-weight: bold;
+            color: #94a3b8;
+            top: 1px;
+            left: 2px;
+            line-height: 1;
+        }
+
+        #interaction-panel {
+            border-top-left-radius: 1.5rem;
+            border-top-right-radius: 1.5rem;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+            background-color: white;
+            padding-bottom: env(safe-area-inset-bottom, 1rem); 
+        }
+
+        @keyframes flipIn {
+            0% { transform: rotateX(90deg); opacity: 0; background-color: #1e293b; }
+            100% { transform: rotateX(0deg); opacity: 1; }
+        }
+
+        @keyframes pulseGold {
+            0% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7); }
+            70% { box-shadow: 0 0 0 8px rgba(251, 191, 36, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); }
+        }
+
+        .shake {
+            animation: shakeX 0.4s;
+        }
+
+        @keyframes shakeX {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+        }
+
+        .grid-wrapper::-webkit-scrollbar {
+            height: 4px;
+        }
+        .grid-wrapper::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .grid-wrapper::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden bg-slate-50">
+
+    <!-- Header -->
+    <header class="bg-blue-900 text-white p-3 shadow-md shrink-0">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <i class="fas fa-search-location text-xl text-yellow-400"></i>
+                <h1 class="text-sm md:text-lg font-bold uppercase tracking-wide truncate">Truy Tìm Từ Khóa</h1>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="text-xs font-semibold bg-blue-800 px-2 py-1 rounded-full" id="progress-text">0/8</span>
+                <button id="btnReset" class="text-xs bg-blue-700 hover:bg-blue-600 p-2 rounded-full transition w-8 h-8 flex items-center justify-center">
+                    <i class="fas fa-redo"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area (Scrollable) -->
+    <main class="flex-grow overflow-y-auto flex flex-col relative">
+        
+        <!-- Crossword Grid Area -->
+        <div class="w-full flex-grow flex flex-col justify-center py-4">
+            <div class="grid-wrapper">
+                <div id="grid-container">
+                    <!-- Grid will be generated by JS -->
+                </div>
+            </div>
+            
+            <p class="text-center text-xs text-slate-400 mt-2 italic px-4" id="instruction-text">
+                <i class="fas fa-running mr-1"></i> Tìm câu hỏi được giấu bên ngoài để giải mã!
+            </p>
+        </div>
+
+    </main>
+
+    <!-- Fixed Bottom Interaction Panel -->
+    <div id="interaction-panel" class="shrink-0 p-4 border-t border-slate-200 transition-transform duration-300 transform translate-y-0 z-30">
+        
+        <!-- Active Clue Card -->
+        <div class="relative">
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="font-bold text-blue-700 text-xs uppercase" id="lbl-row-number">Trạng thái</h3>
+                <span id="lbl-word-length" class="bg-blue-50 text-blue-800 text-[10px] px-2 py-0.5 rounded-full font-bold border border-blue-100 hidden"></span>
+            </div>
+            
+            <!-- Clue text -->
+            <div class="h-16 md:h-20 overflow-y-auto mb-3 flex items-center">
+                <p id="clue-text" class="text-sm md:text-base font-medium text-slate-700 leading-snug w-full">
+                    <i class="fas fa-info-circle text-blue-500 mr-2"></i>Chọn một hàng phía trên. Các câu hỏi đang bị ẩn, bạn cần tìm gợi ý ở bên ngoài để điền đáp án!
+                </p>
+            </div>
+
+            <!-- Input Area -->
+            <div class="flex gap-2">
+                <input type="text" id="answer-input" disabled placeholder="Chọn hàng để nhập đáp án..." 
+                    class="flex-grow px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm uppercase font-bold disabled:bg-slate-100 disabled:text-slate-400 transition-all shadow-sm"
+                    autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+                <button id="btn-submit" disabled 
+                    class="bg-blue-600 active:bg-blue-700 disabled:bg-slate-300 text-white px-4 py-2 rounded-lg font-bold transition-all flex items-center justify-center shadow-sm whitespace-nowrap">
+                    Gửi
+                </button>
+            </div>
+            
+            <!-- Feedback Message -->
+            <div id="feedback-msg" class="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white text-xs px-3 py-1.5 rounded-full font-semibold opacity-0 transition-opacity duration-300 shadow-lg pointer-events-none whitespace-nowrap z-50">
+            </div>
+        </div>
+    </div>
+
+    <!-- Victory Modal -->
+    <div id="victory-modal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-50 hidden flex flex-col items-center justify-center p-6 opacity-0 transition-opacity duration-500">
+        <div class="bg-white w-full max-w-sm rounded-2xl p-6 text-center shadow-2xl transform scale-95 transition-transform duration-500 flex flex-col items-center" id="victory-content">
+            <div class="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
+                <i class="fas fa-trophy text-3xl text-yellow-500"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-1">Xuất Sắc!</h2>
+            <div class="bg-blue-50 px-4 py-2 rounded-lg mb-4 w-full border border-blue-100">
+                 <h3 class="text-xl font-black text-blue-700 tracking-[0.2em]">THẤU HIỂU</h3>
+            </div>
+            <p class="text-slate-600 mb-6 text-sm leading-relaxed">
+                Các bạn đã tìm đủ các mảnh ghép!<br>Thấu hiểu khách hàng để chốt deal.<br>Thấu hiểu đồng đội để đi đường dài.
+            </p>
+            <button onclick="closeModal()" class="w-full bg-blue-600 active:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all">
+                Tuyệt vời!
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Data configuration
+        const KEY_COLUMN_INDEX = 2;
+        
+        const puzzleData = [
+            { id: 1, text: "TƯ VẤN", chars: ["T","Ư","V","Ấ","N"], offset: 2, clue: "Công việc chiếm phần lớn thời gian, đòi hỏi lắng nghe để đưa ra giải pháp chỗ ở tốt nhất?" },
+            { id: 2, text: "HỢP ĐỒNG", chars: ["H","Ợ","P","Đ","Ồ","N","G"], offset: 2, clue: "Khoảnh khắc 'vỡ òa' nhất sau khi chốt cọc thành công, xác lập giao dịch chính thức?" },
+            { id: 3, text: "CẤP THIẾT", chars: ["C","Ấ","P","T","H","I","Ế","T"], offset: 1, clue: "Trạng thái khách cần nhà gấp trong đêm, đòi hỏi Sale xử lý nhanh chóng?" },
+            { id: 4, text: "ƯU ĐIỂM", chars: ["Ư","U","Đ","I","Ể","M"], offset: 1, clue: "Ban công thoáng, máy giặt riêng... được Sale dùng làm 'vũ khí' thuyết phục khách là gì?" },
+            { id: 5, text: "HỖ TRỢ", chars: ["H","Ỗ","T","R","Ợ"], offset: 2, clue: "Hành động trực page, làm thủ tục giúp đồng đội đang kẹt đi tour dẫn khách?" },
+            { id: 6, text: "KIÊN TRÌ", chars: ["K","I","Ê","N","T","R","Ì"], offset: 1, clue: "Phẩm chất giúp Sale vượt qua những ngày 'đói' khách, hay bị khách 'bom' hẹn?" },
+            { id: 7, text: "TIỂU TIẾT", chars: ["T","I","Ể","U","T","I","Ế","T"], offset: 0, clue: "Để ý từ vết bẩn nhỏ, mùi hương phòng trước khi khách đến xem thể hiện sự chăm chút các...?" },
+            { id: 8, text: "NHU CẦU", chars: ["N","H","U","C","Ầ","U"], offset: 0, clue: "Điều Sale phải 'đọc vị' thật kỹ (tài chính, vị trí) để không dẫn khách đi vòng vo?" },
+        ];
+
+        // State
+        let activeRowIndex = -1;
+        let solvedRows = new Set();
+        const maxColumns = 10;
+
+        // DOM Elements
+        const gridContainer = document.getElementById('grid-container');
+        const clueText = document.getElementById('clue-text');
+        const lblRowNumber = document.getElementById('lbl-row-number');
+        const lblWordLength = document.getElementById('lbl-word-length');
+        const answerInput = document.getElementById('answer-input');
+        const btnSubmit = document.getElementById('btn-submit');
+        const feedbackMsg = document.getElementById('feedback-msg');
+        const progressText = document.getElementById('progress-text');
+        const btnReset = document.getElementById('btnReset');
+        const instructionText = document.getElementById('instruction-text');
+
+        // Normalization utility
+        function normalizeString(str) {
+            return str.normalize("NFD")
+                      .replace(/[\u0300-\u036f]/g, "")
+                      .replace(/đ/g, "d").replace(/Đ/g, "D")
+                      .replace(/\s+/g, '')
+                      .toUpperCase();
+        }
+
+        // Initialize Grid
+        function initGrid() {
+            gridContainer.innerHTML = '';
+            
+            puzzleData.forEach((row, rowIndex) => {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'row-container';
+                rowDiv.dataset.index = rowIndex;
+                
+                rowDiv.addEventListener('click', () => selectRow(rowIndex));
+
+                for (let col = 0; col < maxColumns; col++) {
+                    const cellDiv = document.createElement('div');
+                    cellDiv.className = 'grid-cell';
+
+                    if (col >= row.offset && col < row.offset + row.chars.length) {
+                        const charIndex = col - row.offset;
+                        cellDiv.dataset.row = rowIndex;
+                        cellDiv.dataset.col = col;
+                        
+                        if (col === KEY_COLUMN_INDEX) {
+                            cellDiv.classList.add('key-col');
+                        }
+
+                        if (charIndex === 0) {
+                            const numSpan = document.createElement('span');
+                            numSpan.textContent = row.id;
+                            numSpan.className = 'cell-number';
+                            cellDiv.appendChild(numSpan);
+                        }
+
+                        const charSpan = document.createElement('span');
+                        charSpan.className = 'char-content hidden';
+                        charSpan.textContent = row.chars[charIndex];
+                        cellDiv.appendChild(charSpan);
+                    } else {
+                        cellDiv.classList.add('hidden-cell');
+                    }
+                    rowDiv.appendChild(cellDiv);
+                }
+                gridContainer.appendChild(rowDiv);
+            });
+            updateProgress();
+        }
+
+        // Select a row
+        function selectRow(index) {
+            if (activeRowIndex !== -1) {
+                document.querySelector(`.row-container[data-index="${activeRowIndex}"]`).classList.remove('active-row');
+            }
+            
+            activeRowIndex = index;
+            const rowData = puzzleData[index];
+            const isSolved = solvedRows.has(index);
+
+            const activeRowEl = document.querySelector(`.row-container[data-index="${index}"]`);
+            activeRowEl.classList.add('active-row');
+            activeRowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            lblRowNumber.textContent = `Hàng ${rowData.id}`;
+            lblWordLength.textContent = `${rowData.chars.length} chữ`;
+            lblWordLength.classList.remove('hidden');
+            instructionText.classList.add('hidden');
+            
+            answerInput.value = '';
+
+            // LOGIC ẨN/HIỆN CÂU HỎI Ở ĐÂY
+            if (isSolved) {
+                // Nếu đã giải xong -> Hiện câu hỏi gốc
+                clueText.innerHTML = `<span class="text-green-600"><i class="fas fa-check-circle mr-2"></i></span>${rowData.clue}`;
+                answerInput.disabled = true;
+                btnSubmit.disabled = true;
+                answerInput.placeholder = "Đã giải mã ✓";
+            } else {
+                // Nếu chưa giải xong -> Giấu câu hỏi
+                clueText.innerHTML = `<span class="text-slate-400 italic"><i class="fas fa-lock mr-2"></i>Câu hỏi đang bị khóa. Hãy đi tìm gợi ý bên ngoài và điền đáp án!</span>`;
+                answerInput.disabled = false;
+                btnSubmit.disabled = false;
+                answerInput.placeholder = "Nhập đáp án bạn tìm được...";
+                setTimeout(() => answerInput.focus(), 100);
+            }
+        }
+
+        // Handle Answer
+        function checkAnswer() {
+            if (activeRowIndex === -1 || solvedRows.has(activeRowIndex)) return;
+
+            const inputStr = answerInput.value;
+            if (!inputStr) return;
+
+            answerInput.blur();
+
+            const rowData = puzzleData[activeRowIndex];
+            const expected = normalizeString(rowData.text);
+            const actual = normalizeString(inputStr);
+
+            const activeRowDiv = document.querySelector(`.row-container[data-index="${activeRowIndex}"]`);
+
+            if (expected === actual) {
+                showFeedback("Chính xác! Đã mở khóa.", "bg-green-600");
+                solveRow(activeRowIndex);
+            } else {
+                showFeedback("Sai rồi, đi tìm lại nhé!", "bg-red-600");
+                answerInput.classList.add('shake');
+                activeRowDiv.classList.add('shake');
+                setTimeout(() => {
+                    answerInput.classList.remove('shake');
+                    activeRowDiv.classList.remove('shake');
+                    answerInput.focus();
+                }, 400);
+            }
+        }
+
+        function solveRow(index) {
+            solvedRows.add(index);
+            const rowData = puzzleData[index];
+            const rowDiv = document.querySelector(`.row-container[data-index="${index}"]`);
+            const cells = rowDiv.querySelectorAll('.grid-cell:not(.hidden-cell)');
+            
+            // Hiện chữ lên
+            cells.forEach((cell, i) => {
+                setTimeout(() => {
+                    cell.classList.add('revealed');
+                    cell.querySelector('.char-content').classList.remove('hidden');
+                }, i * 100);
+            });
+
+            // Cập nhật lại màn hình nếu người dùng vẫn đang chọn ô vừa trả lời đúng
+            if (activeRowIndex === index) {
+                clueText.innerHTML = `<span class="text-green-600 font-bold"><i class="fas fa-unlock-alt mr-2"></i>Đã mở khóa:</span> ${rowData.clue}`;
+                answerInput.disabled = true;
+                btnSubmit.disabled = true;
+                answerInput.placeholder = "Đã giải mã ✓";
+            }
+
+            updateProgress();
+
+            // Kiểm tra chiến thắng
+            if (solvedRows.size === puzzleData.length) {
+                setTimeout(triggerVictory, cells.length * 100 + 400);
+            } else {
+                 // Tự động nhảy qua ô chưa giải tiếp theo
+                 let nextIndex = (index + 1) % puzzleData.length;
+                 while(solvedRows.has(nextIndex) && solvedRows.size < puzzleData.length) {
+                     nextIndex = (nextIndex + 1) % puzzleData.length;
+                 }
+                 if(solvedRows.size < puzzleData.length){
+                     setTimeout(() => selectRow(nextIndex), cells.length * 100 + 1000); // Đợi 1 giây để họ đọc được câu hỏi vừa mở khóa
+                 }
+            }
+        }
+
+        let feedbackTimeout;
+        function showFeedback(msg, bgClass) {
+            clearTimeout(feedbackTimeout);
+            feedbackMsg.className = `absolute -top-12 left-1/2 transform -translate-x-1/2 text-white text-xs px-4 py-2 rounded-full font-bold transition-opacity duration-300 shadow-lg pointer-events-none whitespace-nowrap z-50 ${bgClass}`;
+            feedbackMsg.textContent = msg;
+            feedbackMsg.style.opacity = '1';
+            
+            feedbackTimeout = setTimeout(() => {
+                feedbackMsg.style.opacity = '0';
+            }, 2000);
+        }
+
+        function updateProgress() {
+            progressText.textContent = `${solvedRows.size}/8`;
+        }
+
+        function triggerVictory() {
+            gridContainer.classList.add('victory-mode');
+            
+            const modal = document.getElementById('victory-modal');
+            const modalContent = documen
